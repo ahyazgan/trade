@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Polymarket Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: #161b27;
+      border-bottom: 1px solid #2d3748;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 1.2rem; color: #63b3ed; font-weight: 700; letter-spacing: .5px; }
+
+    /* ── PORTFOLIO WIDGET ── */
+    #portfolio {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      background: #1a2035;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: .85rem;
+      min-width: 320px;
+    }
+    .pf-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .pf-label { color: #718096; font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; }
+    .pf-value { font-weight: 700; font-size: 1rem; }
+    #pf-balance { color: #68d391; }
+    #pf-invested { color: #63b3ed; }
+    #pf-pnl.positive { color: #68d391; }
+    #pf-pnl.negative { color: #fc8181; }
+    #reset-btn {
+      margin-left: auto;
+      background: #2d3748;
+      border: 1px solid #4a5568;
+      color: #a0aec0;
+      border-radius: 6px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: .78rem;
+      transition: background .15s;
+    }
+    #reset-btn:hover { background: #4a5568; color: #e2e8f0; }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ── MARKETS TABLE ── */
+    .markets-panel h2 {
+      font-size: 1rem;
+      color: #a0aec0;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    #markets-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+    #markets-table thead th {
+      background: #1a2035;
+      color: #718096;
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      text-transform: uppercase;
+      font-size: .73rem;
+      letter-spacing: .5px;
+      border-bottom: 1px solid #2d3748;
+    }
+    #markets-table tbody tr {
+      border-bottom: 1px solid #1e2535;
+      transition: background .1s;
+    }
+    #markets-table tbody tr:hover { background: #1a2035; }
+    #markets-table tbody td { padding: 12px 14px; vertical-align: middle; }
+
+    .market-question { font-weight: 500; color: #e2e8f0; max-width: 360px; line-height: 1.4; }
+    .market-category {
+      display: inline-block;
+      background: #2d3748;
+      color: #90cdf4;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: .72rem;
+      margin-top: 4px;
+    }
+
+    .price-yes { color: #68d391; font-weight: 700; }
+    .price-no  { color: #fc8181; font-weight: 700; }
+
+    /* ── TRADE BUTTONS ── */
+    .trade-btns { display: flex; gap: 8px; }
+    .btn-yes, .btn-no {
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: .82rem;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-yes { background: #276749; color: #9ae6b4; }
+    .btn-no  { background: #742a2a; color: #feb2b2; }
+    .btn-yes:hover { background: #2f855a; }
+    .btn-no:hover  { background: #9b2c2c; }
+    .btn-yes:active, .btn-no:active { transform: scale(.95); }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: 1px solid #4a5568;
+      font-size: .88rem;
+      transition: transform .3s ease;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── POSITIONS PANEL ── */
+    .positions-panel h2 {
+      font-size: 1rem;
+      color: #a0aec0;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    #positions-list { display: flex; flex-direction: column; gap: 10px; }
+    .pos-card {
+      background: #161b27;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: .83rem;
+    }
+    .pos-card .pos-q { color: #cbd5e0; margin-bottom: 6px; line-height: 1.35; font-weight: 500; }
+    .pos-card .pos-detail {
+      display: flex;
+      justify-content: space-between;
+      color: #718096;
+      font-size: .78rem;
+    }
+    .pos-card .pos-pnl { font-weight: 700; }
+    .pos-card .pos-pnl.positive { color: #68d391; }
+    .pos-card .pos-pnl.negative { color: #fc8181; }
+    .pos-tag { display: inline-block; border-radius: 4px; padding: 1px 7px; font-size: .72rem; font-weight: 700; margin-bottom: 5px; }
+    .pos-tag.yes { background: #276749; color: #9ae6b4; }
+    .pos-tag.no  { background: #742a2a; color: #feb2b2; }
+
+    .empty-state { color: #4a5568; font-size: .85rem; text-align: center; padding: 40px 0; }
+
+    /* ── LOADING ── */
+    .loading { color: #4a5568; text-align: center; padding: 60px 0; font-size: .9rem; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f1117; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📈 Polymarket Dashboard</h1>
+  <div id="portfolio">
+    <div class="pf-stat">
+      <span class="pf-label">Balance</span>
+      <span class="pf-value" id="pf-balance">$1,000.00</span>
+    </div>
+    <div class="pf-stat">
+      <span class="pf-label">Invested</span>
+      <span class="pf-value" id="pf-invested">$0.00</span>
+    </div>
+    <div class="pf-stat">
+      <span class="pf-label">P&amp;L</span>
+      <span class="pf-value" id="pf-pnl">$0.00</span>
+    </div>
+    <button id="reset-btn" title="Reset paper trading account">Reset</button>
+  </div>
+</header>
+
+<main>
+  <section class="markets-panel">
+    <h2>Live Markets</h2>
+    <table id="markets-table">
+      <thead>
+        <tr>
+          <th>Market</th>
+          <th>YES</th>
+          <th>NO</th>
+          <th>Volume</th>
+          <th>Trade ($10)</th>
+        </tr>
+      </thead>
+      <tbody id="markets-body">
+        <tr><td colspan="5" class="loading">Loading markets…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="positions-panel">
+    <h2>My Positions</h2>
+    <div id="positions-list">
+      <p class="empty-state">No positions yet.<br>Click YES / NO to trade.</p>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const BET_AMOUNT   = 10;       // $ per trade
+const STARTING_BAL = 1000;
+const LS_KEY       = 'pm_paper_trading';
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let state = loadState();
+let markets = [];  // fetched market data
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────────
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return defaultState();
+}
+function defaultState() {
+  return { balance: STARTING_BAL, positions: [] };
+}
+function saveState() {
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+
+// ── PORTFOLIO UI ───────────────────────────────────────────────────────────
+function renderPortfolio() {
+  const invested = state.positions.reduce((s, p) => s + p.cost, 0);
+  const currentValue = state.positions.reduce((s, p) => {
+    const mkt = markets.find(m => m.conditionId === p.conditionId);
+    if (!mkt) return s + p.cost;  // keep cost if market not found
+    const currentPrice = p.side === 'YES' ? mkt.bestAsk : (1 - mkt.bestBid);
+    return s + (currentPrice * p.shares);
+  }, 0);
+  const pnl = currentValue - invested;
+
+  document.getElementById('pf-balance').textContent  = fmt(state.balance);
+  document.getElementById('pf-invested').textContent = fmt(invested);
+  const pnlEl = document.getElementById('pf-pnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt(pnl);
+  pnlEl.className = pnl >= 0 ? 'pf-value positive' : 'pf-value negative';
+}
+
+// ── POSITIONS UI ───────────────────────────────────────────────────────────
+function renderPositions() {
+  const el = document.getElementById('positions-list');
+  if (state.positions.length === 0) {
+    el.innerHTML = '<p class="empty-state">No positions yet.<br>Click YES / NO to trade.</p>';
+    return;
+  }
+
+  el.innerHTML = state.positions.map((p, i) => {
+    const mkt = markets.find(m => m.conditionId === p.conditionId);
+    const currentPrice = mkt
+      ? (p.side === 'YES' ? mkt.bestAsk : (1 - mkt.bestBid))
+      : p.entryPrice;
+    const value = currentPrice * p.shares;
+    const pnl   = value - p.cost;
+    const pnlCls = pnl >= 0 ? 'positive' : 'negative';
+
+    return `
+      <div class="pos-card">
+        <span class="pos-tag ${p.side.toLowerCase()}">${p.side}</span>
+        <div class="pos-q">${p.question}</div>
+        <div class="pos-detail">
+          <span>Entry: ${fmtP(p.entryPrice)} × ${p.shares.toFixed(2)}</span>
+          <span>Now: ${fmtP(currentPrice)}</span>
+        </div>
+        <div class="pos-detail" style="margin-top:4px">
+          <span>Cost: ${fmt(p.cost)}</span>
+          <span class="pos-pnl ${pnlCls}">${pnl >= 0 ? '+' : ''}${fmt(pnl)}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── TRADE ─────────────────────────────────────────────────────────────────
+function trade(conditionId, side, question) {
+  const mkt = markets.find(m => m.conditionId === conditionId);
+  if (!mkt) return;
+
+  // price to BUY: YES → bestAsk, NO → (1 - bestBid)
+  const price = side === 'YES' ? mkt.bestAsk : (1 - mkt.bestBid);
+  if (!price || price <= 0) { showToast('Price not available'); return; }
+
+  if (state.balance < BET_AMOUNT) {
+    showToast('Insufficient balance!');
+    return;
+  }
+
+  const shares = BET_AMOUNT / price;
+  state.balance -= BET_AMOUNT;
+
+  // merge into existing position if same market+side
+  const existing = state.positions.find(p => p.conditionId === conditionId && p.side === side);
+  if (existing) {
+    const totalCost   = existing.cost + BET_AMOUNT;
+    const totalShares = existing.shares + shares;
+    existing.entryPrice = totalCost / totalShares;
+    existing.shares     = totalShares;
+    existing.cost       = totalCost;
+  } else {
+    state.positions.push({ conditionId, side, question, entryPrice: price, shares, cost: BET_AMOUNT });
+  }
+
+  saveState();
+  renderPortfolio();
+  renderPositions();
+  showToast(`Bought ${shares.toFixed(2)} ${side} shares @ ${fmtP(price)}`);
+}
+
+// ── MARKETS TABLE ──────────────────────────────────────────────────────────
+function renderMarkets() {
+  const tbody = document.getElementById('markets-body');
+  if (markets.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">No markets found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = markets.map(m => {
+    const yesP = fmtP(m.bestAsk);
+    const noP  = fmtP(m.bestBid ? 1 - m.bestBid : null);
+    const vol  = m.volume != null ? '$' + Number(m.volume).toLocaleString(undefined, {maximumFractionDigits: 0}) : '—';
+    const qShort = m.question.length > 80 ? m.question.slice(0, 78) + '…' : m.question;
+    return `
+      <tr>
+        <td>
+          <div class="market-question">${escHtml(qShort)}</div>
+          ${m.category ? `<span class="market-category">${escHtml(m.category)}</span>` : ''}
+        </td>
+        <td class="price-yes">${yesP}</td>
+        <td class="price-no">${noP}</td>
+        <td>${vol}</td>
+        <td>
+          <div class="trade-btns">
+            <button class="btn-yes" onclick="trade('${m.conditionId}','YES',${JSON.stringify(escHtml(qShort))})">YES</button>
+            <button class="btn-no"  onclick="trade('${m.conditionId}','NO',${JSON.stringify(escHtml(qShort))})">NO</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+// ── FETCH MARKETS ──────────────────────────────────────────────────────────
+async function fetchMarkets() {
+  try {
+    // Gamma API — no auth needed for public market list
+    const url = 'https://gamma-api.polymarket.com/markets?limit=50&active=true&closed=false&order=volume&ascending=false';
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+
+    markets = data.map(m => ({
+      conditionId: m.conditionId || m.id,
+      question:    m.question || m.title || 'Unknown',
+      category:    m.category || '',
+      bestAsk:     parseFloat(m.bestAsk  ?? m.outcomePrices?.[0] ?? 0.5),
+      bestBid:     parseFloat(m.bestBid  ?? m.outcomePrices?.[0] ?? 0.5),
+      volume:      m.volume,
+    })).filter(m => m.bestAsk > 0 && m.bestAsk < 1);
+
+  } catch (err) {
+    console.warn('Live fetch failed, using demo data:', err);
+    markets = demoMarkets();
+  }
+
+  renderMarkets();
+  renderPortfolio();
+  renderPositions();
+}
+
+// ── DEMO DATA (offline fallback) ───────────────────────────────────────────
+function demoMarkets() {
+  return [
+    { conditionId: 'demo-1', question: 'Will the Fed cut rates in June 2026?',      category: 'Economy',  bestAsk: 0.58, bestBid: 0.56, volume: 2340000 },
+    { conditionId: 'demo-2', question: 'Will Bitcoin exceed $100k by end of 2026?', category: 'Crypto',   bestAsk: 0.44, bestBid: 0.42, volume: 5120000 },
+    { conditionId: 'demo-3', question: 'Will OpenAI release GPT-5 in Q2 2026?',     category: 'AI',       bestAsk: 0.31, bestBid: 0.29, volume: 890000  },
+    { conditionId: 'demo-4', question: 'Will Ethereum ETF see $1B inflows in 2026?',category: 'Crypto',   bestAsk: 0.67, bestBid: 0.65, volume: 1450000 },
+    { conditionId: 'demo-5', question: 'Will US unemployment exceed 5% in 2026?',   category: 'Economy',  bestAsk: 0.22, bestBid: 0.20, volume: 670000  },
+    { conditionId: 'demo-6', question: 'Will SpaceX land on Mars before 2028?',     category: 'Science',  bestAsk: 0.14, bestBid: 0.12, volume: 340000  },
+    { conditionId: 'demo-7', question: 'Will the S&P 500 reach 6000 by June 2026?', category: 'Finance',  bestAsk: 0.73, bestBid: 0.71, volume: 3200000 },
+    { conditionId: 'demo-8', question: 'Will there be a US recession in 2026?',     category: 'Economy',  bestAsk: 0.39, bestBid: 0.37, volume: 1890000 },
+  ];
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function fmt(n)  { return '$' + Number(n).toFixed(2); }
+function fmtP(n) { return n != null ? (Number(n) * 100).toFixed(1) + '¢' : '—'; }
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── RESET ──────────────────────────────────────────────────────────────────
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (!confirm('Reset paper trading account? All positions will be lost.')) return;
+  state = defaultState();
+  saveState();
+  renderPortfolio();
+  renderPositions();
+  showToast('Account reset to $1,000.00');
+});
+
+// ── AUTO-REFRESH ───────────────────────────────────────────────────────────
+fetchMarkets();
+setInterval(fetchMarkets, 30_000);  // refresh prices every 30s
+</script>
+</body>
+</html>
